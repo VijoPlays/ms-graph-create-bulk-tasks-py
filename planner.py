@@ -2,7 +2,7 @@ import json
 import re
 import requests
 
-# https://learn.microsoft.com/en-us/graph/api/resources/planner-overview?view=graph-rest-1.0
+# For more info read: https://learn.microsoft.com/en-us/graph/api/resources/planner-overview?view=graph-rest-1.0
 
 baseURL = "https://graph.microsoft.com/v1.0/"
 tokenFile = open(".token", "r")
@@ -30,9 +30,7 @@ def createPlannerPlan(groupID):
     url = baseURL + "planner/plans"
     body = json.dumps(
         {
-            "container": {  # TODO: Replace the groupID below this one
-                "url": "https://graph.microsoft.com/v1.0/groups/" + groupID
-            },
+            "container": {"url": "https://graph.microsoft.com/v1.0/groups/" + groupID},
             "title": "bulkPlan",
         }
     )
