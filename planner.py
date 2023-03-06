@@ -1,5 +1,4 @@
 import json
-import re
 import requests
 
 # For more info read: https://learn.microsoft.com/en-us/graph/api/resources/planner-overview?view=graph-rest-1.0
@@ -13,7 +12,8 @@ headers = {
 }
 
 # Set these variables the way you need them.
-taskCount = 300
+taskCount = 20
+planCount = 1
 
 
 # Gets an array of groupIDs from Planner.
@@ -26,12 +26,14 @@ def getPlannerGroups():
 
 
 # Creates a Plan in Planner and returns the ID of it.
-def createPlannerPlan(groupID):
+#   GroupID is the plan it should be assigned to.
+#   Count is simply some number, used for giving the bulkTask an identifier. For single tasks, just supply "1".
+def createPlannerPlan(groupID, count):
     url = baseURL + "planner/plans"
     body = json.dumps(
         {
             "container": {"url": "https://graph.microsoft.com/v1.0/groups/" + groupID},
-            "title": "bulkPlan",
+            "title": "bulkPlan_" + str(count),
         }
     )
 
@@ -54,36 +56,62 @@ def createPlannerTask(planID, count):
     return data["id"]
 
 
-# FIXME: Couldn't get deletion to work, have to delete the plan itself manually.
-# def getPlannerPlanDetails(planID):
-#     url = baseURL + "planner/plans/" + planID + "/details"
-#     r = requests.get(url=url, headers=headers)
-#     data = r.json()
+# Retrieves an eTag from a plan, if the plan exists on the group.
+def getPlannerPlanETag(groupID, planID):
+    url = baseURL + "groups/" + groupID + "/planner/plans"
+    r = requests.get(url=url, headers=headers)
+    data = r.json()
 
-#     eTag = data["@odata.etag"].removeprefix("W/")
-#     print(eTag)
-#     return eTag
+    plans = data["value"]
+    for plan in plans:
+        if plan["id"] == planID:
+            return plan["@odata.etag"]
+
+    print("ERROR: Could not find plan " + planID + " in group " + groupID + ".")
+    exit
 
 
-# def deletePlannerPlan(planID):
-#     eTag = getPlannerPlanDetails(planID=planID)
-#     url = baseURL + "planner/plans/" + planID
-#     headerDelete = {
-#         "Authorization": "Bearer " + authToken,
-#         "If-Match": eTag,
-#     }
+# Deletes a plan with the planID in group of groupID.
+def deletePlannerPlan(planID, groupID):
+    eTag = getPlannerPlanETag(planID=planID, groupID=groupID)
+    url = baseURL + "planner/plans/" + planID
+    headerDelete = {
+        "Authorization": "Bearer " + authToken,
+        "If-Match": eTag,
+    }
 
-#     r = requests.delete(url=url, headers=headerDelete)
+    r = requests.delete(url=url, headers=headerDelete)
 
-#     print(r.json())
-#     print("Status code for deletion was: " + str(r.status_code))
+    if r.status_code == 204:
+        print("successfully deleted the plan")
+    else:
+        print(
+            "error occurred upon deletion of plan. status code is: "
+            + str(r.status_code)
+        )
+
 
 groupIDs = getPlannerGroups()
-planID = createPlannerPlan(groupIDs[0])
-print("PlanID for deletion is: " + planID)
+groupID = groupIDs[0]
+print("GroupID for deletion is: " + groupID)
+planIDs = []
 
 i = 0
-while i < taskCount:
-    createPlannerTask(planID, i)
-    print("Created task no.: " + str(i))
+j = 0
+while i < planCount:
+    planID = createPlannerPlan(groupID=groupID, count=i)
+    print("PlanID for deletion is: " + planID)
+    while j < taskCount:
+        createPlannerTask(planID=planID, count=j)
+        print("Created task no.: " + str(j) + " in plan no.: " + str(i))
+        j += 1
+    j = 0
+    planIDs.append(planID)
     i += 1
+
+for planID in planIDs:
+    deletePlannerPlan(planID=planID, groupID=groupID)
+
+print(
+    "If an error occurred, it's most likely related to a missing token. Check the README for more details."
+)

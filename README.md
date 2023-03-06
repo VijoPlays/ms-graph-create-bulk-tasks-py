@@ -14,4 +14,4 @@ Afterwards, simply run
 
 to execute one of the scripts and create a Planner Plan with multiple Tasks.
 
-You can do the same thing for the todo.py.
+You can do the same thing for the todo.py and thinktime.py files.
