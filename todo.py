@@ -14,7 +14,7 @@ headers = {
 }
 
 # Set these variables the way you need them.
-taskCount = 20
+taskCount = 1000
 listCount = 1
 
 
@@ -77,8 +77,8 @@ while i < listCount:
     listIDs.append(listID)
     i += 1
 
-for listID in listIDs:
-    deleteTodoList(listID=listID)
+# for listID in listIDs:
+#     deleteTodoList(listID=listID)
 
 print(
     "If an error occurred, it's most likely related to a missing token. Check the README for more details."
