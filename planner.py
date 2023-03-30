@@ -1,4 +1,7 @@
+import argparse
 import json
+import os
+import time
 import requests
 
 # For more info read: https://learn.microsoft.com/en-us/graph/api/resources/planner-overview?view=graph-rest-1.0
@@ -6,13 +9,21 @@ import requests
 baseURL = "https://graph.microsoft.com/v1.0/"
 tokenFile = open(".token", "r")
 authToken = tokenFile.read()
+tokenFile.close()
 headers = {
     "Content-Type": "application/json",
     "Authorization": "Bearer " + authToken,
 }
+plannerPlanFileName = "store" + os.sep + "plannerPlans.txt"
+
+parser = argparse.ArgumentParser(
+    description="By adding a -d flag you can delete all created plans."
+)
+parser.add_argument("-d", action="store_true")
+providedCLFlags = parser.parse_args()
 
 # Set these variables the way you need them.
-taskCount = 20
+taskCount = 10000
 planCount = 1
 
 
@@ -40,7 +51,13 @@ def createPlannerPlan(groupID, count):
     r = requests.post(url=url, data=body, headers=headers)
     data = r.json()
 
-    return data["id"]
+    id = data["id"]
+
+    file = open(plannerPlanFileName, "a")
+    file.write(id + "\n")
+    file.close()
+
+    return id
 
 
 # Creates a Task in a plan.
@@ -52,6 +69,12 @@ def createPlannerTask(planID, count):
 
     r = requests.post(url=url, data=body, headers=headers)
     data = r.json()
+
+    if r.status_code == 429:
+        t = r.headers.get("retry-after")
+        time.sleep(int(t))
+        createPlannerTask(planID=planID, count=count)
+        return
 
     return data["id"]
 
@@ -71,7 +94,7 @@ def getPlannerPlanETag(groupID, planID):
     exit
 
 
-# Deletes a plan with the planID in group of groupID.
+# Deletes a plan from the plannerPlans.txt file in group of groupID.
 def deletePlannerPlan(planID, groupID):
     eTag = getPlannerPlanETag(planID=planID, groupID=groupID)
     url = baseURL + "planner/plans/" + planID
@@ -83,7 +106,7 @@ def deletePlannerPlan(planID, groupID):
     r = requests.delete(url=url, headers=headerDelete)
 
     if r.status_code == 204:
-        print("successfully deleted the plan")
+        print("successfully deleted the plan with ID: " + planID)
     else:
         print(
             "error occurred upon deletion of plan. status code is: "
@@ -94,23 +117,30 @@ def deletePlannerPlan(planID, groupID):
 groupIDs = getPlannerGroups()
 groupID = groupIDs[0]
 print("GroupID for deletion is: " + groupID)
-planIDs = []
 
-i = 0
-j = 0
-while i < planCount:
-    planID = createPlannerPlan(groupID=groupID, count=i)
-    print("PlanID for deletion is: " + planID)
-    while j < taskCount:
-        createPlannerTask(planID=planID, count=j)
-        print("Created task no.: " + str(j) + " in plan no.: " + str(i))
-        j += 1
+if providedCLFlags.d:
+    # Delete plan routine.
+    planIDs = []
+    with open(plannerPlanFileName) as file:
+        for line in file:
+            planIDs.append(line.removesuffix("\n"))
+    open(plannerPlanFileName, "w").close()
+
+    for planID in planIDs:
+        deletePlannerPlan(planID=planID, groupID=groupID)
+else:
+    # Create plan routine.
+    i = 0
     j = 0
-    planIDs.append(planID)
-    i += 1
-
-for planID in planIDs:
-    deletePlannerPlan(planID=planID, groupID=groupID)
+    while i < planCount:
+        planID = createPlannerPlan(groupID=groupID, count=i)
+        print("PlanID for deletion is: " + planID)
+        while j < taskCount:
+            createPlannerTask(planID=planID, count=j)
+            print("Created task no.: " + str(j) + " in plan no.: " + str(i))
+            j += 1
+        j = 0
+        i += 1
 
 print(
     "If an error occurred, it's most likely related to a missing token. Check the README for more details."

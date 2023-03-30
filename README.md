@@ -14,4 +14,8 @@ Afterwards, simply run
 
 to execute one of the scripts and create a Planner Plan with multiple Tasks.
 
-You can do the same thing for the todo.py and thinktime.py files.
+You can do the same thing for the todo.py file.
+
+# Deletion of Tasks
+
+In order to delete tasks, simply supply a -d flag and the script will delete all tasks.

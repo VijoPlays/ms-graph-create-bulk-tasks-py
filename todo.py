@@ -1,6 +1,8 @@
 # For more info read: https://learn.microsoft.com/en-us/graph/api/resources/planner-overview?view=graph-rest-1.0
 
+import argparse
 import json
+import os
 
 import requests
 
@@ -12,9 +14,16 @@ headers = {
     "Content-Type": "application/json",
     "Authorization": "Bearer " + authToken,
 }
+todoListFileName = "store" + os.sep + "todoLists.txt"
+
+parser = argparse.ArgumentParser(
+    description="By adding a -d flag you can delete all created lists."
+)
+parser.add_argument("-d", action="store_true")
+providedCLFlags = parser.parse_args()
 
 # Set these variables the way you need them.
-taskCount = 1000
+taskCount = 0
 listCount = 1
 
 
@@ -27,7 +36,13 @@ def createTodoList(count):
     r = requests.post(url=baseURL, data=body, headers=headers)
     data = r.json()
 
-    return data["id"]
+    id = data["id"]
+
+    file = open(todoListFileName, "a")
+    file.write(id + "\n")
+    file.close()
+
+    return id
 
 
 # Creates a Task in a list.
@@ -54,31 +69,39 @@ def deleteTodoList(listID):
     r = requests.delete(url=url, headers=headerDelete)
 
     if r.status_code == 204:
-        print("successfully deleted the plan")
+        print("successfully deleted the list with ID: " + listID)
     else:
         print(
-            "error occurred upon deletion of plan. status code is: "
+            "error occurred upon deletion of list. status code is: "
             + str(r.status_code)
         )
 
 
-listIDs = []
+if providedCLFlags.d:
+    # Delete list routine.
+    listIDs = []
 
-i = 0
-j = 0
-while i < listCount:
-    listID = createTodoList(count=i)
-    print("ListID for deletion is: " + listID)
-    while j < taskCount:
-        createTodoTask(listID=listID, count=j)
-        print("Created task no.: " + str(j) + " in list no.: " + str(i))
-        j += 1
+    with open(todoListFileName) as file:
+        for line in file:
+            listIDs.append(line.removesuffix("\n"))
+    open(todoListFileName, "w").close()
+
+    for listID in listIDs:
+        deleteTodoList(listID=listID)
+else:
+    # Create list routine.
+    i = 0
     j = 0
-    listIDs.append(listID)
-    i += 1
+    while i < listCount:
+        listID = createTodoList(count=i)
+        print("ListID for deletion is: " + listID)
+        while j < taskCount:
+            createTodoTask(listID=listID, count=j)
+            print("Created task no.: " + str(j) + " in list no.: " + str(i))
+            j += 1
+        j = 0
+        i += 1
 
-# for listID in listIDs:
-#     deleteTodoList(listID=listID)
 
 print(
     "If an error occurred, it's most likely related to a missing token. Check the README for more details."
